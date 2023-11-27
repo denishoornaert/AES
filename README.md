@@ -25,7 +25,7 @@ sbt "runMain projectname.MyTopLevelVerilog"
 sbt "runMain projectname.MyTopLevelVhdl"
 
 // To run the testbench
-sbt "runMain projectname.MyTopLevelSim"
+sbt "runMain aes.AESSim"
 ```
 
 * The example hardware description is into `hw/spinal/projectname/MyTopLevel.scala`

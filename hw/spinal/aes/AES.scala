@@ -8,18 +8,23 @@ case class AESport(payload_width: Int) extends Bundle {
 }
 
 // Hardware definition
-case class AES(payload_width: Int) extends Component {
+case class AES(payload_width: Int, key_width: Int = 128) extends Component {
   val io = new Bundle {
-    val source = slave Stream(UInt(payload_width bits))
-    val destination = master Stream(UInt(payload_width bits))
+    val key               = in    (        UInt(key_width bits)     )
+    val round             = in    (        UInt(log2Up(11) bits)    )
+    val previous_constant = in    (        UInt(8 bits)             )
+    val roundkey          = out   (        UInt(key_width bits)     )
+    val constant          = out   (        UInt(8 bits)             )
+    val source            = slave ( Stream(UInt(payload_width bits)))
+    val destination       = master( Stream(UInt(payload_width bits)))
   }
 
   // Collection of permutations: (from, to)
   val permutations = Array(
-    Array( 0,  0), Array( 1,  1), Array( 2,  2), Array( 3,  3),
-    Array( 4,  7), Array( 5,  4), Array( 6,  5), Array( 7,  6),
-    Array( 8, 10), Array( 9, 11), Array(10,  8), Array(11,  9),
-    Array(12, 13), Array(13, 14), Array(14, 15), Array(15, 12)
+    Array( 0, 12), Array( 1,  9), Array( 2,  6), Array( 3,  3),
+    Array( 4,  0), Array( 5, 13), Array( 6, 10), Array( 7,  7),
+    Array( 8,  4), Array( 9,  1), Array(10, 14), Array(11, 11),
+    Array(12,  8), Array(13,  5), Array(14,  2), Array(15, 15)
   )
 
   val enc_sbox = Seq[UInt](
@@ -67,6 +72,42 @@ case class AES(payload_width: Int) extends Component {
     Array(3, 1, 1, 2)
   )
 
+  def GenerateRoundConstant(round: UInt, prev: UInt): UInt = {
+    return ((B"80'x361B8040201008040201".subdivideIn(8 bits))(round)).asUInt
+  }
+
+  // Specialized for AES-128 must be augmented for other versions!
+  def KeySchedule(key: Vec[UInt], constant: UInt): Vec[UInt] = {
+    // Reshape key
+    val key_by_32 = key.asBits.subdivideIn(32 bits)
+    // To result
+    val round_key_by_32 = Vec.fill(widthOf(key)/32)(Bits(32 bits))
+    // Handle word 3
+    val modified_word_3 = Bits(32 bits)
+    val sub_bytes = Vec.fill(widthOf(modified_word_3)/8)(UInt(8 bits))
+    for (i <- 0 until widthOf(modified_word_3)/8) {
+      val sbox = Mem(UInt(8 bits), initialContent=enc_sbox)
+      sub_bytes(i) := sbox.readAsync(key_by_32(0)(i*8 until (i+1)*8).asUInt)
+    }
+    modified_word_3 := Cat(sub_bytes(2)^constant, sub_bytes(1), sub_bytes(0), sub_bytes(3))
+    // Handle word 0
+    round_key_by_32(3) := key_by_32(3)^modified_word_3
+    // Handle word 1
+    round_key_by_32(2) := round_key_by_32(3)^key_by_32(2)
+    // Handle word 2
+    round_key_by_32(1) := round_key_by_32(2)^key_by_32(1)
+    // Handle word 3
+    round_key_by_32(0) := round_key_by_32(1)^key_by_32(0)
+    // Result
+    val res = round_key_by_32.asBits.subdivideIn(8 bits)
+    // Cast to vec of UInts
+    val res_as_UInt = Vec.fill(widthOf(res)/8)(UInt(8 bits))
+    for (i <- 0 until widthOf(res)/8) {
+      res_as_UInt(i) := res(i).asUInt
+    }
+    return res_as_UInt
+  }
+
   def SubBytes(payload: Vec[UInt]): Vec[UInt] = {
     val bytes = Vec.fill(widthOf(payload)/8)(UInt(8 bits))
     for (i <- 0 until widthOf(payload)/8) {
@@ -85,23 +126,31 @@ case class AES(payload_width: Int) extends Component {
   }
 
   def MixColumns(payload: Vec[UInt]): Vec[UInt] = {
+    def x2(encoding: UInt): UInt = {
+      return (encoding<<1).resized ^ Mux(encoding.msb, U"8'h1B", U"8'h00")
+    }
+
+    def x3(encoding: UInt): UInt = {
+      return x2(encoding) ^ encoding
+    }
+
     val bytes = Vec.fill(payload.getBitsWidth/8)(UInt(8 bits))
-    bytes( 0) := ((matrix(0)(0)*payload( 0)) + (matrix(0)(1)*payload( 4)) + (matrix(0)(2)*payload( 8)) + (matrix(0)(3)*payload(12))).resized
-    bytes( 1) := ((matrix(0)(0)*payload( 1)) + (matrix(0)(1)*payload( 5)) + (matrix(0)(2)*payload( 9)) + (matrix(0)(3)*payload(13))).resized
-    bytes( 2) := ((matrix(0)(0)*payload( 2)) + (matrix(0)(1)*payload( 6)) + (matrix(0)(2)*payload(10)) + (matrix(0)(3)*payload(14))).resized
-    bytes( 3) := ((matrix(0)(0)*payload( 3)) + (matrix(0)(1)*payload( 7)) + (matrix(0)(2)*payload(11)) + (matrix(0)(3)*payload(15))).resized
-    bytes( 4) := ((matrix(1)(0)*payload( 0)) + (matrix(1)(1)*payload( 4)) + (matrix(1)(2)*payload( 8)) + (matrix(1)(3)*payload(12))).resized
-    bytes( 5) := ((matrix(1)(0)*payload( 1)) + (matrix(1)(1)*payload( 5)) + (matrix(1)(2)*payload( 9)) + (matrix(1)(3)*payload(13))).resized
-    bytes( 6) := ((matrix(1)(0)*payload( 2)) + (matrix(1)(1)*payload( 6)) + (matrix(1)(2)*payload(10)) + (matrix(1)(3)*payload(14))).resized
-    bytes( 7) := ((matrix(1)(0)*payload( 3)) + (matrix(1)(1)*payload( 7)) + (matrix(1)(2)*payload(11)) + (matrix(1)(3)*payload(15))).resized
-    bytes( 8) := ((matrix(2)(0)*payload( 0)) + (matrix(2)(1)*payload( 4)) + (matrix(2)(2)*payload( 8)) + (matrix(2)(3)*payload(12))).resized
-    bytes( 9) := ((matrix(2)(0)*payload( 1)) + (matrix(2)(1)*payload( 5)) + (matrix(2)(2)*payload( 9)) + (matrix(2)(3)*payload(13))).resized
-    bytes(10) := ((matrix(2)(0)*payload( 2)) + (matrix(2)(1)*payload( 6)) + (matrix(2)(2)*payload(10)) + (matrix(2)(3)*payload(14))).resized
-    bytes(11) := ((matrix(2)(0)*payload( 3)) + (matrix(2)(1)*payload( 7)) + (matrix(2)(2)*payload(11)) + (matrix(2)(3)*payload(15))).resized
-    bytes(12) := ((matrix(3)(0)*payload( 0)) + (matrix(3)(1)*payload( 4)) + (matrix(3)(2)*payload( 8)) + (matrix(3)(3)*payload(12))).resized
-    bytes(13) := ((matrix(3)(0)*payload( 1)) + (matrix(3)(1)*payload( 5)) + (matrix(3)(2)*payload( 9)) + (matrix(3)(3)*payload(13))).resized
-    bytes(14) := ((matrix(3)(0)*payload( 2)) + (matrix(3)(1)*payload( 6)) + (matrix(3)(2)*payload(10)) + (matrix(3)(3)*payload(14))).resized
-    bytes(15) := ((matrix(3)(0)*payload( 3)) + (matrix(3)(1)*payload( 7)) + (matrix(3)(2)*payload(11)) + (matrix(3)(3)*payload(15))).resized
+    bytes( 0) := (x3(payload( 3)) ^    payload( 2)  ^    payload( 1)  ^ x2(payload( 0))).resized
+    bytes( 1) := (   payload( 3)  ^    payload( 2)  ^ x2(payload( 1)) ^ x3(payload( 0))).resized
+    bytes( 2) := (   payload( 3)  ^ x2(payload( 2)) ^ x3(payload( 1)) ^    payload( 0) ).resized
+    bytes( 3) := (x2(payload( 3)) ^ x3(payload( 2)) ^    payload( 1)  ^    payload( 0) ).resized
+    bytes( 4) := (x3(payload( 7)) ^    payload( 6)  ^    payload( 5)  ^ x2(payload( 4))).resized
+    bytes( 5) := (   payload( 7)  ^    payload( 6)  ^ x2(payload( 5)) ^ x3(payload( 4))).resized
+    bytes( 6) := (   payload( 7)  ^ x2(payload( 6)) ^ x3(payload( 5)) ^    payload( 4) ).resized
+    bytes( 7) := (x2(payload( 7)) ^ x3(payload( 6)) ^    payload( 5)  ^    payload( 4) ).resized
+    bytes( 8) := (x3(payload(11)) ^    payload(10)  ^    payload( 9)  ^ x2(payload( 8))).resized
+    bytes( 9) := (   payload(11)  ^    payload(10)  ^ x2(payload( 9)) ^ x3(payload( 8))).resized
+    bytes(10) := (   payload(11)  ^ x2(payload(10)) ^ x3(payload( 9)) ^    payload( 8) ).resized
+    bytes(11) := (x2(payload(11)) ^ x3(payload(10)) ^    payload( 9)  ^    payload( 8) ).resized
+    bytes(12) := (x3(payload(15)) ^    payload(14)  ^    payload(13)  ^ x2(payload(12))).resized
+    bytes(13) := (   payload(15)  ^    payload(14)  ^ x2(payload(13)) ^ x3(payload(12))).resized
+    bytes(14) := (   payload(15)  ^ x2(payload(14)) ^ x3(payload(13)) ^    payload(12) ).resized
+    bytes(15) := (x2(payload(15)) ^ x3(payload(14)) ^    payload(13)  ^    payload(12) ).resized
     return bytes
   }
 
@@ -114,19 +163,28 @@ case class AES(payload_width: Int) extends Component {
   }
 
   // decompose input in bytes
-  val payload = io.source.payload.subdivideIn(8 bits)
-    
+  val payload           = io.source.payload.subdivideIn(8 bits)
+  val key               = io.key.subdivideIn(8 bits)
+  val round             = io.round
+  val previous_constant = io.previous_constant
+
   // create payload sized data for each step of a stage
   val steps = Array.fill(4)(Vec.fill(widthOf(payload)/8)(UInt(8 bits)))
+  val constant = UInt(8 bits)
+  val roundkey = Vec.fill(key.getBitsWidth/8)(UInt(8 bits))
 
   // whenever source handshake happens, perform stage with payload
   when (io.source.valid && io.source.ready) {
-    steps(0) := this.SubBytes(payload)
+    constant := this.GenerateRoundConstant(round, previous_constant)
+    roundkey := this.KeySchedule(key, constant)
+    steps(0) := this.SubBytes(Mux(round === U"4'h0", payload^key, payload))
     steps(1) := this.ShiftRows(steps(0))
-    steps(2) := this.MixColumns(steps(1))
-    steps(3) := this.AddRoundKey(steps(2), steps(2)) // TODO: second argument should be the subkey
+    steps(2) := Mux(round === U"4'h9", steps(1), this.MixColumns(steps(1)))
+    steps(3) := this.AddRoundKey(steps(2), roundkey)
   }
   .otherwise {
+    constant := U"8'h00"
+    roundkey := Vec.fill(widthOf(payload)/8)(U(0, 8 bits))
     steps(0) := Vec.fill(widthOf(payload)/8)(U(0, 8 bits))
     steps(1) := Vec.fill(widthOf(payload)/8)(U(1, 8 bits))
     steps(2) := Vec.fill(widthOf(payload)/8)(U(2, 8 bits))
@@ -137,6 +195,8 @@ case class AES(payload_width: Int) extends Component {
   io.source.ready        := io.destination.ready
   io.destination.valid   := io.source.valid
   io.destination.payload := steps(3).asBits.asUInt
+  io.constant            := constant.asBits.asUInt
+  io.roundkey            := roundkey.asBits.asUInt
 
 }
 

@@ -3,9 +3,9 @@ package aes
 import spinal.core._
 import spinal.lib._
 
-case class AESport(payload_width: Int) extends Bundle {
-  val payload = UInt(payload_width bits)
-}
+// case class AESport(payload_width: Int) extends Bundle {
+//   val payload = UInt(payload_width bits)
+// }
 
 // Hardware definition
 case class AES(payload_width: Int) extends Component {

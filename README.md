@@ -19,6 +19,24 @@ To obtain the equivalent VHDL:
 sbt "runMain aes.AESVhdl"
 ```
 
+### Troubleshooting
+
+If the simulation (as well as the build) fails with an error looking like
+```
+[info] [Progress] Verilator compilation started
+[info] ../verilator/VAES__spinalWrapper.cpp:5:10: fatal error: jni.h: No such file or directory
+[info]     5 | #include <jni.h>
+[info]       |          ^~~~~~~
+[info] compilation terminated.
+```
+
+It means that the java/open-jdk version used cannot be leveraged. Instead, you may want to use older version such as, for example, open-jdk 8.
+
+
+```sh
+sbt "runMain aes.AESSim" --java-home /usr/lib/jvm/java-8-openjdk-amd64/
+```
+
 ## Dependencies
 
 Make sure to have `java` (or `openjdk`), `scala`, and `sbt` install on your system.

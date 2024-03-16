@@ -46,12 +46,11 @@ object AESSim extends App {
     var round = 0
     var constant = 0
 
-    dut.io.key #= keys(0)
-    dut.io.round #= round
-    dut.io.previous_constant #= constant
-    
     dut.io.source.valid #= true
-    dut.io.source.payload #= encrypteds(0)
+    dut.io.source.payload.key #= keys(0)
+    dut.io.source.payload.round #= round
+    dut.io.source.payload.constant #= constant
+    dut.io.source.payload.message #= encrypteds(0)
     
     dut.io.destination.ready #= true
     dut.clockDomain.waitSampling()
@@ -60,21 +59,21 @@ object AESSim extends App {
       println("--------------------------------------------------------------------------------")
       println("ROUND "+i.toString)
       // key
-      key = dut.io.roundkey.toBigInt
-      dut.io.key #= key
-      println("KEY: "+dut.io.roundkey.toBigInt.toString(16)+" = "+keys(i).toString(16))
-      assert(dut.io.roundkey.toBigInt == keys(i))
+      key = dut.io.destination.payload.key.toBigInt
+      dut.io.source.payload.key #= key
+      println("KEY: "+dut.io.destination.payload.key.toBigInt.toString(16)+" = "+keys(i).toString(16))
+      assert(dut.io.destination.payload.key.toBigInt == keys(i))
       // constant
-      encrypted = dut.io.destination.payload.toBigInt
-      dut.io.source.payload #= encrypted
-      println("ENC: "+dut.io.destination.payload.toBigInt.toString(16)+" = "+encrypteds(i).toString(16))
-      assert(dut.io.destination.payload.toBigInt == encrypteds(i))
+      encrypted = dut.io.destination.payload.message.toBigInt
+      dut.io.source.payload.message #= encrypted
+      println("ENC: "+dut.io.destination.payload.message.toBigInt.toString(16)+" = "+encrypteds(i).toString(16))
+      assert(dut.io.destination.payload.message.toBigInt == encrypteds(i))
       // constant
       round = round+1
-      dut.io.round #= round
+      dut.io.source.payload.round #= round
       // constant
-      constant = dut.io.constant.toInt
-      dut.io.previous_constant #= constant
+      constant = dut.io.destination.payload.constant.toInt
+      dut.io.source.payload.constant #= constant
       // next cc
       dut.clockDomain.waitSampling()
       println("OK")

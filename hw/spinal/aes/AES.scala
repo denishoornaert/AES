@@ -3,13 +3,23 @@ package aes
 import spinal.core._
 import spinal.lib._
 
-case class AESport(payload_width: Int) extends Bundle {
-  val payload = UInt(payload_width bits)
+case class AESInputPort(payload_width: Int, key_width: Int, amount_of_rounds: Int) extends Bundle {
+  val round    = UInt(log2Up(amount_of_rounds) bits)
+  val message  = UInt(payload_width bits)
+  val key      = UInt(key_width bits)
+  val constant = UInt(8 bits)
+}
+
+case class AESOutputPort(payload_width: Int, key_width: Int) extends Bundle {
+  val message  = UInt(payload_width bits)
+  val key      = UInt(key_width bits)
+  val constant = UInt(8 bits)
 }
 
 // Hardware definition
-case class AES(payload_width: Int, key_width: Int = 128) extends Component {
+case class AES(payload_width: Int = 128, key_width: Int = 128) extends Component {
   val io = new Bundle {
+/*
     val key               = in    (        UInt(key_width bits)     )
     val round             = in    (        UInt(log2Up(11) bits)    )
     val previous_constant = in    (        UInt(8 bits)             )
@@ -17,6 +27,9 @@ case class AES(payload_width: Int, key_width: Int = 128) extends Component {
     val constant          = out   (        UInt(8 bits)             )
     val source            = slave ( Stream(UInt(payload_width bits)))
     val destination       = master( Stream(UInt(payload_width bits)))
+*/
+    val source      =  slave(Stream(AESInputPort (payload_width, key_width, 11))) // TODO: for 128 is it 11 or 10 rounds?
+    val destination = master(Stream(AESOutputPort(payload_width, key_width)))
   }
 
   // Collection of permutations: (from, to)
@@ -163,13 +176,13 @@ case class AES(payload_width: Int, key_width: Int = 128) extends Component {
   }
 
   // decompose input in bytes
-  val payload           = io.source.payload.subdivideIn(8 bits)
-  val key               = io.key.subdivideIn(8 bits)
-  val round             = io.round
-  val previous_constant = io.previous_constant
+  val payload           = io.source.payload.message.subdivideIn(8 bits)
+  val key               = io.source.payload.key.subdivideIn(8 bits)
+  val round             = io.source.payload.round
+  val previous_constant = io.source.payload.constant
 
   // create payload sized data for each step of a stage
-  val steps = Array.fill(4)(Vec.fill(widthOf(payload)/8)(UInt(8 bits)))
+  val steps    = Array.fill(4)(Vec.fill(widthOf(payload)/8)(UInt(8 bits)))
   val constant = UInt(8 bits)
   val roundkey = Vec.fill(key.getBitsWidth/8)(UInt(8 bits))
 
@@ -192,11 +205,11 @@ case class AES(payload_width: Int, key_width: Int = 128) extends Component {
   }
 
   // assign IO
-  io.source.ready        := io.destination.ready
-  io.destination.valid   := io.source.valid
-  io.destination.payload := steps(3).asBits.asUInt
-  io.constant            := constant.asBits.asUInt
-  io.roundkey            := roundkey.asBits.asUInt
+  io.source.ready                 := io.destination.ready
+  io.destination.valid            := io.source.valid
+  io.destination.payload.message  := steps(3).asBits.asUInt
+  io.destination.payload.constant := constant.asBits.asUInt
+  io.destination.payload.key      := roundkey.asBits.asUInt
 
 }
 

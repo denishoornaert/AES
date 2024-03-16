@@ -6,7 +6,6 @@ import spinal.core.sim._
 object AESEncryptionBlockSim extends App {
   Config.sim.compile{
       val dut = new AESEncryptionBlock(128)
-      dut.steps(0).simPublic()
       dut
     }.doSim { dut =>
     dut.clockDomain.forkStimulus(period = 10)
@@ -55,7 +54,7 @@ object AESEncryptionBlockSim extends App {
     dut.io.destination.ready #= true
     dut.clockDomain.waitSampling()
     
-    for (i <- 1 until 11) {
+    for (i <- 1 until 10) {
       println("--------------------------------------------------------------------------------")
       println("ROUND "+i.toString)
       // key

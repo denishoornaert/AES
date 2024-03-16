@@ -3,9 +3,9 @@ package aes
 import spinal.core._
 import spinal.core.sim._
 
-object AESSim extends App {
+object AESEncryptionBlockSim extends App {
   Config.sim.compile{
-      val dut = new AES(128)
+      val dut = new AESEncryptionBlock(128)
       dut.steps(0).simPublic()
       dut
     }.doSim { dut =>

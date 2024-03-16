@@ -17,17 +17,8 @@ case class AESOutputPort(payload_width: Int, key_width: Int) extends Bundle {
 }
 
 // Hardware definition
-case class AES(payload_width: Int = 128, key_width: Int = 128) extends Component {
+case class AESEncryptionBlock(payload_width: Int = 128, key_width: Int = 128) extends Component {
   val io = new Bundle {
-/*
-    val key               = in    (        UInt(key_width bits)     )
-    val round             = in    (        UInt(log2Up(11) bits)    )
-    val previous_constant = in    (        UInt(8 bits)             )
-    val roundkey          = out   (        UInt(key_width bits)     )
-    val constant          = out   (        UInt(8 bits)             )
-    val source            = slave ( Stream(UInt(payload_width bits)))
-    val destination       = master( Stream(UInt(payload_width bits)))
-*/
     val source      =  slave(Stream(AESInputPort (payload_width, key_width, 11))) // TODO: for 128 is it 11 or 10 rounds?
     val destination = master(Stream(AESOutputPort(payload_width, key_width)))
   }
@@ -213,10 +204,10 @@ case class AES(payload_width: Int = 128, key_width: Int = 128) extends Component
 
 }
 
-object AESVerilog extends App {
-  Config.spinal.generateVerilog(AES(128))
+object AESEncryptionBlockVerilog extends App {
+  Config.spinal.generateVerilog(AESEncryptionBlock(128))
 }
 
-object AESVhdl extends App {
-  Config.spinal.generateVhdl(AES(128))
+object AESEncryptionBlockVhdl extends App {
+  Config.spinal.generateVhdl(AESEncryptionBlock(128))
 }

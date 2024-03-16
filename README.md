@@ -4,19 +4,19 @@ This repository contains the hardware description of the AES accelerator as a PL
 
 ## Test-Bench
 ```sh
-sbt "runMain aes.AESSim"
+sbt "runMain aes.AESEncryptionBlockSim"
 ```
 
 ## Obtain the HDL
 
 To obtain the equivalent Verilog:
 ```sh
-sbt "runMain aes.AESVerilog"
+sbt "runMain aes.AESEncryptionBlockVerilog"
 ```
 
 To obtain the equivalent VHDL:
 ```sh
-sbt "runMain aes.AESVhdl"
+sbt "runMain aes.AESEncryptionBlockVhdl"
 ```
 
 ### Troubleshooting
@@ -34,7 +34,7 @@ It means that the java/open-jdk version used cannot be leveraged. Instead, you m
 
 
 ```sh
-sbt "runMain aes.AESSim" --java-home /usr/lib/jvm/java-8-openjdk-amd64/
+sbt "runMain aes.AESEncryptionBlockSim" --java-home /usr/lib/jvm/java-8-openjdk-amd64/
 ```
 
 ## Dependencies
@@ -43,5 +43,5 @@ Make sure to have `java` (or `openjdk`), `scala`, and `sbt` install on your syst
 
 ## Repository organization
 
- - The hardware description is located at `hw/spinal/aes/AES.scala`
- - The test-bench is located at `hw/spinal/aes/AESSim.scala`
+ - The hardware description is located at `hw/spinal/aes/AESEncryptionBlock.scala`
+ - The test-bench is located at `hw/spinal/aes/AESEncryptionBlockSim.scala`

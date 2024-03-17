@@ -10,9 +10,24 @@ object AESEncryptionCoreSim extends App {
   }.doSim { dut =>
     dut.clockDomain.forkStimulus(period = 10)
 
-    val key = BigInt("5468617473206D79204B756E67204675", 16)
+    val keys = Array(
+      //     "T h a t s   m y   K u n g   F u "
+      BigInt("5468617473206D79204B756E67204675", 16),
+      BigInt("E232FCF191129188B159E4E6D679A293", 16),
+      BigInt("56082007C71AB18F76435569A03AF7FA", 16),
+      BigInt("D2600DE7157ABC686339E901C3031EFB", 16),
+      BigInt("A11202C9B468BEA1D75157A01452495B", 16),
+      BigInt("B1293B3305418592D210D232C6429B69", 16),
+      BigInt("BD3DC287B87C47156A6C9527AC2E0E4E", 16),
+      BigInt("CC96ED1674EAAA031E863F24B2A8316A", 16),
+      BigInt("8E51EF21FABB4522E43D7A0656954B6C", 16),
+      BigInt("BFE2BF904559FAB2A16480B4F7F1CBD8", 16),
+      BigInt("28FDDEF86DA4244ACCC0A4FE3B316F26", 16)
+    )
 
+    // These are teh 128 first character of 'lorem ipsum'
     val msgs = Array(
+      //BigInt("54776F204F6E65204E696E652054776F", 16),
       BigInt("4c6f72656d20697073756d20646f6c6f", 16),
       BigInt("722073697420616d65742c20636f6e73", 16),
       BigInt("65637465747565722061646970697363", 16),
@@ -31,21 +46,23 @@ object AESEncryptionCoreSim extends App {
       BigInt("161bf02326ebfffad7b54b5d556cdbc9", 16),
       BigInt("135daa3fd7cc54aabd84c9824d5e34a8", 16),
       BigInt("b7dc195739122523b108f5b00f3585df", 16),
-      BigInt("c5db3936c7ec4e5d97610607336822b1", 16),
+      BigInt("c5db3936c7ec4e5d97610607336822b1", 16)
     )
 
     for (i <- 0 until 8) {
       println("--------------------------------------------------------------------------------")
       println("Block "+i+" encryption:")
-      dut.io.source.valid      #= true
-      dut.io.source.message    #= msgs(i)
-      dut.io.source.key        #= key
-      dut.io.destination.ready #= true
+      dut.io.source.valid             #= true
+      dut.io.source.payload.message   #= msgs(i)
+      for (k <- 0 until 11)
+        dut.io.source.payload.keys(k) #= keys(k)
+      dut.io.destination.ready        #= true
 
       dut.clockDomain.waitSamplingWhere(dut.io.source.ready.toBoolean)
       dut.io.source.valid #= false
 
       dut.clockDomain.waitSamplingWhere(dut.io.destination.valid.toBoolean)
+      println(dut.io.destination.payload.message.toBigInt.toString(16)+" == "+encs(i).toString(16))
       assert(dut.io.destination.payload.message.toBigInt == encs(i))
       println("\t-> PASSES") 
     }

@@ -19,11 +19,10 @@ case class AESEncryptionCore(message_width: Int, key_width: Int) extends Compone
     val destination = master(Stream(CoreInterfaceOut(message_width)))
   }
 
-  val staged_destination_valid = Reg(Bool()) init(False)
-  val staged_destination = Reg(BlockInterface(message_width, key_width))
+  val destinationInterface = Reg(master(Flow(CoreInterfaceOut(message_width))))
 
-  io.destination.valid := staged_destination_valid
-  io.destination.payload.message := staged_destination.message
+  io.destination.valid := destinationInterface.valid
+  io.destination.payload.message := destinationInterface.message
 
   val block = AESEncryptionBlock(message_width, key_width)
 
@@ -37,8 +36,8 @@ case class AESEncryptionCore(message_width: Int, key_width: Int) extends Compone
 
     val idle : State = new State with EntryPoint {
       onEntry {
-        staged_destination_valid := False
-        staged_destination.message := 0
+        destinationInterface.valid   := False
+        destinationInterface.message := 0
         counter := 1
       }
       whenIsActive {
@@ -68,8 +67,8 @@ case class AESEncryptionCore(message_width: Int, key_width: Int) extends Compone
         }
       }
       onExit {
-        staged_destination_valid := True
-        staged_destination.message := block.io.destination.payload.message
+        destinationInterface.valid := True
+        destinationInterface.message := block.io.destination.payload.message
       }
     }
     val ready : State = new State {
@@ -79,7 +78,7 @@ case class AESEncryptionCore(message_width: Int, key_width: Int) extends Compone
           blockInterface.valid           := False
           blockInterface.payload.message := 0
           blockInterface.payload.key     := 0
-          //blockInput.round   := 0
+          blockInterface.round           := 0
           goto(idle)
         }
       }

@@ -27,7 +27,6 @@ object AESEncryptionCoreSim extends App {
 
     // These are teh 128 first character of 'lorem ipsum'
     val msgs = Array(
-      //BigInt("54776F204F6E65204E696E652054776F", 16),
       BigInt("4c6f72656d20697073756d20646f6c6f", 16),
       BigInt("722073697420616d65742c20636f6e73", 16),
       BigInt("65637465747565722061646970697363", 16),

@@ -1,9 +1,9 @@
-package aes.steps
+package aes
 
 import spinal.core._
 import spinal.lib._
 
-case class MixColumns(message_width: Int) extends Component {
+case class MixColumns(message_width: Int, key_width: Int, encrypts: Boolean = true) extends Component {
 
   def x2(encoding: UInt): UInt = {
     return (encoding<<1).resized ^ Mux(encoding.msb, U"8'h1B", U"8'h00")
@@ -14,28 +14,35 @@ case class MixColumns(message_width: Int) extends Component {
   }
 
   val io = new Bundle {
-    val source      =  slave(Stream(Vec.fill(message_width/8)(UInt(8 bits))))
-    val destination = master(Stream(Vec.fill(message_width/8)(UInt(8 bits))))
+    val source      =  slave(Stream(StageInterface(message_width, key_width)))
+    val destination = master(Stream(StageInterface(message_width, key_width)))
   }
 
-  io.destination.valid := io.source.valid
-  io.source.ready := io.destination.ready
-
-  io.destination.payload( 0) := (x3(io.source.payload( 3)) ^    io.source.payload( 2)  ^    io.source.payload( 1)  ^ x2(io.source.payload( 0))).resized
-  io.destination.payload( 1) := (   io.source.payload( 3)  ^    io.source.payload( 2)  ^ x2(io.source.payload( 1)) ^ x3(io.source.payload( 0))).resized
-  io.destination.payload( 2) := (   io.source.payload( 3)  ^ x2(io.source.payload( 2)) ^ x3(io.source.payload( 1)) ^    io.source.payload( 0) ).resized
-  io.destination.payload( 3) := (x2(io.source.payload( 3)) ^ x3(io.source.payload( 2)) ^    io.source.payload( 1)  ^    io.source.payload( 0) ).resized
-  io.destination.payload( 4) := (x3(io.source.payload( 7)) ^    io.source.payload( 6)  ^    io.source.payload( 5)  ^ x2(io.source.payload( 4))).resized
-  io.destination.payload( 5) := (   io.source.payload( 7)  ^    io.source.payload( 6)  ^ x2(io.source.payload( 5)) ^ x3(io.source.payload( 4))).resized
-  io.destination.payload( 6) := (   io.source.payload( 7)  ^ x2(io.source.payload( 6)) ^ x3(io.source.payload( 5)) ^    io.source.payload( 4) ).resized
-  io.destination.payload( 7) := (x2(io.source.payload( 7)) ^ x3(io.source.payload( 6)) ^    io.source.payload( 5)  ^    io.source.payload( 4) ).resized
-  io.destination.payload( 8) := (x3(io.source.payload(11)) ^    io.source.payload(10)  ^    io.source.payload( 9)  ^ x2(io.source.payload( 8))).resized
-  io.destination.payload( 9) := (   io.source.payload(11)  ^    io.source.payload(10)  ^ x2(io.source.payload( 9)) ^ x3(io.source.payload( 8))).resized
-  io.destination.payload(10) := (   io.source.payload(11)  ^ x2(io.source.payload(10)) ^ x3(io.source.payload( 9)) ^    io.source.payload( 8) ).resized
-  io.destination.payload(11) := (x2(io.source.payload(11)) ^ x3(io.source.payload(10)) ^    io.source.payload( 9)  ^    io.source.payload( 8) ).resized
-  io.destination.payload(12) := (x3(io.source.payload(15)) ^    io.source.payload(14)  ^    io.source.payload(13)  ^ x2(io.source.payload(12))).resized
-  io.destination.payload(13) := (   io.source.payload(15)  ^    io.source.payload(14)  ^ x2(io.source.payload(13)) ^ x3(io.source.payload(12))).resized
-  io.destination.payload(14) := (   io.source.payload(15)  ^ x2(io.source.payload(14)) ^ x3(io.source.payload(13)) ^    io.source.payload(12) ).resized
-  io.destination.payload(15) := (x2(io.source.payload(15)) ^ x3(io.source.payload(14)) ^    io.source.payload(13)  ^    io.source.payload(12) ).resized
+  io.destination.valid         := io.source.valid
+  io.destination.payload.key   := io.source.payload.key
+  io.destination.payload.round := io.source.payload.round
+  io.source.ready              := io.destination.ready
+  
+  when (io.source.payload.round =/= U"4'h9") {
+    io.destination.payload.message( 0) := (x3(io.source.payload.message( 3)) ^    io.source.payload.message( 2)  ^    io.source.payload.message( 1)  ^ x2(io.source.payload.message( 0))).resized
+    io.destination.payload.message( 1) := (   io.source.payload.message( 3)  ^    io.source.payload.message( 2)  ^ x2(io.source.payload.message( 1)) ^ x3(io.source.payload.message( 0))).resized
+    io.destination.payload.message( 2) := (   io.source.payload.message( 3)  ^ x2(io.source.payload.message( 2)) ^ x3(io.source.payload.message( 1)) ^    io.source.payload.message( 0) ).resized
+    io.destination.payload.message( 3) := (x2(io.source.payload.message( 3)) ^ x3(io.source.payload.message( 2)) ^    io.source.payload.message( 1)  ^    io.source.payload.message( 0) ).resized
+    io.destination.payload.message( 4) := (x3(io.source.payload.message( 7)) ^    io.source.payload.message( 6)  ^    io.source.payload.message( 5)  ^ x2(io.source.payload.message( 4))).resized
+    io.destination.payload.message( 5) := (   io.source.payload.message( 7)  ^    io.source.payload.message( 6)  ^ x2(io.source.payload.message( 5)) ^ x3(io.source.payload.message( 4))).resized
+    io.destination.payload.message( 6) := (   io.source.payload.message( 7)  ^ x2(io.source.payload.message( 6)) ^ x3(io.source.payload.message( 5)) ^    io.source.payload.message( 4) ).resized
+    io.destination.payload.message( 7) := (x2(io.source.payload.message( 7)) ^ x3(io.source.payload.message( 6)) ^    io.source.payload.message( 5)  ^    io.source.payload.message( 4) ).resized
+    io.destination.payload.message( 8) := (x3(io.source.payload.message(11)) ^    io.source.payload.message(10)  ^    io.source.payload.message( 9)  ^ x2(io.source.payload.message( 8))).resized
+    io.destination.payload.message( 9) := (   io.source.payload.message(11)  ^    io.source.payload.message(10)  ^ x2(io.source.payload.message( 9)) ^ x3(io.source.payload.message( 8))).resized
+    io.destination.payload.message(10) := (   io.source.payload.message(11)  ^ x2(io.source.payload.message(10)) ^ x3(io.source.payload.message( 9)) ^    io.source.payload.message( 8) ).resized
+    io.destination.payload.message(11) := (x2(io.source.payload.message(11)) ^ x3(io.source.payload.message(10)) ^    io.source.payload.message( 9)  ^    io.source.payload.message( 8) ).resized
+    io.destination.payload.message(12) := (x3(io.source.payload.message(15)) ^    io.source.payload.message(14)  ^    io.source.payload.message(13)  ^ x2(io.source.payload.message(12))).resized
+    io.destination.payload.message(13) := (   io.source.payload.message(15)  ^    io.source.payload.message(14)  ^ x2(io.source.payload.message(13)) ^ x3(io.source.payload.message(12))).resized
+    io.destination.payload.message(14) := (   io.source.payload.message(15)  ^ x2(io.source.payload.message(14)) ^ x3(io.source.payload.message(13)) ^    io.source.payload.message(12) ).resized
+    io.destination.payload.message(15) := (x2(io.source.payload.message(15)) ^ x3(io.source.payload.message(14)) ^    io.source.payload.message(13)  ^    io.source.payload.message(12) ).resized
+  }
+  .otherwise {
+    io.destination.payload.message := io.source.payload.message
+  }
 
 }

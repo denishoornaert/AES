@@ -46,10 +46,9 @@ object AESEncryptionBlockSim extends App {
     var constant = 0
 
     dut.io.source.valid #= true
-    dut.io.source.payload.key #= keys(0)
+    dut.io.source.payload.key #= keys(1)
     dut.io.source.payload.round #= round
-    dut.io.source.payload.constant #= constant
-    dut.io.source.payload.message #= encrypteds(0)
+    dut.io.source.payload.message #= encrypteds(0)^keys(0)
     
     dut.io.destination.ready #= true
     dut.clockDomain.waitSampling()
@@ -58,21 +57,15 @@ object AESEncryptionBlockSim extends App {
       println("--------------------------------------------------------------------------------")
       println("ROUND "+i.toString)
       // key
-      key = dut.io.destination.payload.key.toBigInt
-      dut.io.source.payload.key #= key
-      println("KEY: "+dut.io.destination.payload.key.toBigInt.toString(16)+" = "+keys(i).toString(16))
-      assert(dut.io.destination.payload.key.toBigInt == keys(i))
-      // constant
+      dut.io.source.payload.key #= keys(i+1)
+      // message
       encrypted = dut.io.destination.payload.message.toBigInt
       dut.io.source.payload.message #= encrypted
       println("ENC: "+dut.io.destination.payload.message.toBigInt.toString(16)+" = "+encrypteds(i).toString(16))
       assert(dut.io.destination.payload.message.toBigInt == encrypteds(i))
-      // constant
+      // round number
       round = round+1
       dut.io.source.payload.round #= round
-      // constant
-      constant = dut.io.destination.payload.constant.toInt
-      dut.io.source.payload.constant #= constant
       // next cc
       dut.clockDomain.waitSampling()
       println("OK")

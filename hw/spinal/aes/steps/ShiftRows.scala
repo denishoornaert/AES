@@ -1,9 +1,9 @@
-package aes.steps
+package aes
 
 import spinal.core._
 import spinal.lib._
 
-case class ShiftRows(message_width: Int) extends Component {
+case class ShiftRows(message_width: Int, key_width: Int) extends Component {
 
   // Collection of permutations: (from, to)
   val permutations = Array(
@@ -14,14 +14,16 @@ case class ShiftRows(message_width: Int) extends Component {
   )
 
   val io = new Bundle {
-    val source      =  slave(Stream(Vec.fill(message_width/8)(UInt(8 bits))))
-    val destination = master(Stream(Vec.fill(message_width/8)(UInt(8 bits))))
+    val source      =  slave(Stream(StageInterface(message_width, key_width)))
+    val destination = master(Stream(StageInterface(message_width, key_width)))
   }
 
-  io.destination.valid := io.source.valid
-  io.source.ready := io.destination.ready
+  io.destination.valid         := io.source.valid
+  io.destination.payload.key   := io.source.payload.key
+  io.destination.payload.round := io.source.payload.round
+  io.source.ready              := io.destination.ready
 
   for (permutation <- permutations) {
-    io.destination.payload(permutation(1)) := io.source.payload(permutation(0))
+    io.destination.payload.message(permutation(1)) := io.source.payload.message(permutation(0))
   }
 }

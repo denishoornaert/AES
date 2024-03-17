@@ -1,11 +1,11 @@
-package aes.steps
+package aes
 
 import spinal.core._
 import spinal.lib._
 
 import aes.common._
 
-case class SubBytes(message_width: Int) extends Component {
+case class SubBytes(message_width: Int, key_width: Int) extends Component {
 
   val enc_sbox = Seq[UInt](
     U"8'h63", U"8'h7c", U"8'h77", U"8'h7b", U"8'hf2", U"8'h6b", U"8'h6f", U"8'hc5", U"8'h30", U"8'h01", U"8'h67", U"8'h2b", U"8'hfe", U"8'hd7", U"8'hab", U"8'h76",
@@ -27,15 +27,17 @@ case class SubBytes(message_width: Int) extends Component {
   )
 
   val io = new Bundle {
-    val source      =  slave(Stream(Vec.fill(message_width/8)(UInt(8 bits))))
-    val destination = master(Stream(Vec.fill(message_width/8)(UInt(8 bits))))
+    val source      =  slave(Stream(StageInterface(message_width, key_width)))
+    val destination = master(Stream(StageInterface(message_width, key_width)))
   }
 
-  io.destination.valid := io.source.valid
-  io.source.ready := io.destination.ready
+  io.destination.valid         := io.source.valid
+  io.destination.payload.key   := io.source.payload.key
+  io.destination.payload.round := io.source.payload.round
+  io.source.ready              := io.destination.ready
 
   for (i <- 0 until message_width/8) {
     val sbox = Mem(UInt(8 bits), initialContent=enc_sbox)
-    io.destination.payload(i) := sbox.readAsync(io.source.payload(i))
+    io.destination.payload.message(i) := sbox.readAsync(io.source.payload.message(i))
   }
 }

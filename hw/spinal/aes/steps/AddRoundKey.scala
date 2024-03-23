@@ -4,7 +4,7 @@ import spinal.core._
 import spinal.lib._
 
 
-case class AddRoundKey(message_width: Int, key_width: Int) extends Component {
+case class AddRoundKey(message_width: Int, key_width: Int, encrypts: Boolean = true) extends Component {
   val io = new Bundle {
     val source      =  slave(Stream(StageInterface(message_width, key_width)))
     val destination = master(Stream(StageInterface(message_width, key_width)))

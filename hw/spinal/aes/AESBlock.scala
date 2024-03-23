@@ -70,9 +70,17 @@ case class AESBlock(payload_width: Int = 128, key_width: Int = 128, encrypts: Bo
 }
 
 object AESEncryptionBlockVerilog extends App {
-  Config.spinal.generateVerilog(AESEncryptionBlock(128))
+  Config.spinal.generateVerilog(AESBlock(128, 128, true))
 }
 
 object AESEncryptionBlockVhdl extends App {
-  Config.spinal.generateVhdl(AESEncryptionBlock(128))
+  Config.spinal.generateVhdl(AESBlock(128, 128, true))
+}
+
+object AESDecryptionBlockVerilog extends App {
+  Config.spinal.generateVerilog(AESBlock(128, 128, false))
+}
+
+object AESDecryptionBlockVhdl extends App {
+  Config.spinal.generateVhdl(AESBlock(128, 128, false))
 }

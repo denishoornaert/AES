@@ -13,18 +13,21 @@ case class CoreInterfaceOut(message_width: Int) extends Bundle {
   val message  = UInt(message_width bits)
 }
 
-case class AESEncryptionCore(message_width: Int, key_width: Int) extends Component {
+case class AESCore(message_width: Int, key_width: Int, encrypts: Boolean = true) extends Component {
   val io = new Bundle {
     val source      =  slave(Stream(CoreInterfaceIn(message_width, key_width)))
     val destination = master(Stream(CoreInterfaceOut(message_width)))
   }
+
+  // Starting round counter
+  val startingCounter = if(encrypts) 0 else 9
 
   val destinationInterface = Reg(master(Flow(CoreInterfaceOut(message_width))))
 
   io.destination.valid := destinationInterface.valid
   io.destination.payload.message := destinationInterface.message
 
-  val block = AESEncryptionBlock(message_width, key_width)
+  val block = AESBlock(message_width, key_width, encrypts)
 
   val fsm = new StateMachine {
     val counter = Counter(0 to 10)
@@ -42,10 +45,12 @@ case class AESEncryptionCore(message_width: Int, key_width: Int) extends Compone
       }
       whenIsActive {
         when (io.source.fire) {
+          val round = if(encrypts) 0 else 10
+          val index = if(encrypts) round+1 else round-1
           blockInterface.valid           := True
-          blockInterface.payload.message := io.source.payload.message^io.source.payload.keys(0)
-          blockInterface.payload.key     := io.source.payload.keys(1)
-          blockInterface.payload.round   := 0
+          blockInterface.payload.message := io.source.payload.message^io.source.payload.keys(round)
+          blockInterface.payload.key     := io.source.payload.keys(index)
+          blockInterface.payload.round   := index
           goto(encrypt)
         }
       }
@@ -54,9 +59,11 @@ case class AESEncryptionCore(message_width: Int, key_width: Int) extends Compone
       onEntry {
       }
       whenIsActive {
+        val round = if(encrypts) counter.value else 10-counter.value
+        val index = if(encrypts) round+1 else round-1
         blockInterface.payload.message := block.io.destination.payload.message
-        blockInterface.payload.key     := io.source.payload.keys(counter.value+1)
-        blockInterface.payload.round   := counter
+        blockInterface.payload.key     := io.source.payload.keys(index)
+        blockInterface.payload.round   := index // round
         when (counter.willOverflowIfInc) {
           blockInterface.valid := False
           goto(ready)
@@ -74,7 +81,7 @@ case class AESEncryptionCore(message_width: Int, key_width: Int) extends Compone
     val ready : State = new State {
       whenIsActive {
         when (io.destination.fire) {
-          counter := 0
+          counter                        := 0
           blockInterface.valid           := False
           blockInterface.payload.message := 0
           blockInterface.payload.key     := 0

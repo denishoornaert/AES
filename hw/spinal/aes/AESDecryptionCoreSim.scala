@@ -3,9 +3,9 @@ package aes
 import spinal.core._
 import spinal.core.sim._
 
-object AESEncryptionCoreSim extends App {
+object AESDecryptionCoreSim extends App {
   Config.sim.compile {
-    val dut = AESCore(128, 128, true)
+    val dut = AESCore(128, 128, false)
     dut
   }.doSim { dut =>
     dut.clockDomain.forkStimulus(period = 10)
@@ -52,7 +52,7 @@ object AESEncryptionCoreSim extends App {
       println("--------------------------------------------------------------------------------")
       println("Block "+i+" encryption:")
       dut.io.source.valid             #= true
-      dut.io.source.payload.message   #= msgs(i)
+      dut.io.source.payload.message   #= encs(i)
       for (k <- 0 until 11)
         dut.io.source.payload.keys(k) #= keys(k)
       dut.io.destination.ready        #= true
@@ -61,8 +61,8 @@ object AESEncryptionCoreSim extends App {
       dut.io.source.valid #= false
 
       dut.clockDomain.waitSamplingWhere(dut.io.destination.valid.toBoolean)
-      println(dut.io.destination.payload.message.toBigInt.toString(16)+" == "+encs(i).toString(16))
-      assert(dut.io.destination.payload.message.toBigInt == encs(i))
+      println(dut.io.destination.payload.message.toBigInt.toString(16)+" == "+msgs(i).toString(16))
+      assert(dut.io.destination.payload.message.toBigInt == msgs(i))
       println("\t-> PASSES") 
     }
     println("--------------------------------------------------------------------------------")

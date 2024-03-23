@@ -16,7 +16,7 @@ case class StageInterface(payload_width: Int, key_width: Int) extends Bundle {
 }
 
 // Hardware definition
-case class AESEncryptionBlock(payload_width: Int = 128, key_width: Int = 128, encrypts: Boolean = true) extends Component {
+case class AESBlock(payload_width: Int = 128, key_width: Int = 128, encrypts: Boolean = true) extends Component {
   val io = new Bundle {
     val source      =  slave(Stream(BlockInterface(payload_width, key_width)))
     val destination = master(Stream(BlockInterface(payload_width, key_width)))

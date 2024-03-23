@@ -3,9 +3,12 @@ package aes
 import spinal.core._
 import spinal.core.sim._
 
+// A good source of comparison:
+//    https://www.cryptool.org/en/cto/aes-step-by-step
+
 object AESEncryptionBlockSim extends App {
   Config.sim.compile{
-      val dut = new AESEncryptionBlock(128)
+      val dut = new AESBlock(128, 128, true)
       dut
     }.doSim { dut =>
     dut.clockDomain.forkStimulus(period = 10)
@@ -48,7 +51,7 @@ object AESEncryptionBlockSim extends App {
     dut.io.source.valid #= true
     dut.io.source.payload.key #= keys(1)
     dut.io.source.payload.round #= round
-    dut.io.source.payload.message #= encrypteds(0)^keys(0)
+    dut.io.source.payload.message #= encrypteds(0)^keys(0) // Simulation initial AddRoundKey
     
     dut.io.destination.ready #= true
     dut.clockDomain.waitSampling()

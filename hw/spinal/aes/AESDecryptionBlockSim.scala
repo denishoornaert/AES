@@ -8,7 +8,7 @@ import spinal.core.sim._
 
 object AESDecryptionBlockSim extends App {
   Config.sim.compile{
-      val dut = new AESEncryptionBlock(128, 128, false)
+      val dut = new AESBlock(128, 128, false)
       dut
     }.doSim { dut =>
     dut.clockDomain.forkStimulus(period = 10)

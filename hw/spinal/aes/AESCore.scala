@@ -4,6 +4,7 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.fsm._
 
+
 case class CoreInterfaceIn(message_width: Int, key_width: Int) extends Bundle {
   val message  = UInt(message_width bits)
   val keys     = Vec.fill(11)(UInt(key_width bits))
@@ -14,13 +15,12 @@ case class CoreInterfaceOut(message_width: Int) extends Bundle {
 }
 
 case class AESCore(message_width: Int, key_width: Int, encrypts: Boolean = true) extends Component {
+  this.setName(if (encrypts) "AESEncryptionCore" else "AESDecryptionCore")
+
   val io = new Bundle {
     val source      =  slave(Stream(CoreInterfaceIn(message_width, key_width)))
     val destination = master(Stream(CoreInterfaceOut(message_width)))
   }
-
-  // Starting round counter
-  val startingCounter = if(encrypts) 0 else 9
 
   val destinationInterface = Reg(master(Flow(CoreInterfaceOut(message_width))))
 

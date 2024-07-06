@@ -53,8 +53,7 @@ object AESDecryptionCoreSim extends App {
       println("Block "+i+" encryption:")
       dut.io.source.valid             #= true
       dut.io.source.payload.message   #= encs(i)
-      for (k <- 0 until 11)
-        dut.io.source.payload.keys(k) #= keys(k)
+      dut.io.source.payload.key       #= keys(0)
       dut.io.destination.ready        #= true
 
       dut.clockDomain.waitSamplingWhere(dut.io.source.ready.toBoolean)

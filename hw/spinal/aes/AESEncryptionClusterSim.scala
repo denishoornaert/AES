@@ -3,9 +3,9 @@ package aes
 import spinal.core._
 import spinal.core.sim._
 
-object AESEncryptionCoreSim extends App {
+object AESEncryptionClusterSim extends App {
   Config.sim.compile {
-    val dut = AESCore(128, 128, true)
+    val dut = AESCluster(128, 128, true, 2)
     dut
   }.doSim { dut =>
     dut.clockDomain.forkStimulus(period = 10)

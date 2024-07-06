@@ -43,7 +43,7 @@ case class MixColumns(message_width: Int, key_width: Int, encrypts: Boolean = tr
   io.source.ready              := io.destination.ready
   
   if (encrypts) {
-    when (io.source.payload.round =/= U"4'hA") {
+    when (io.source.payload.round =/= U"4'h9") {
       io.destination.payload.message( 0) := (x3(io.source.payload.message( 3)) ^    io.source.payload.message( 2)  ^    io.source.payload.message( 1)  ^ x2(io.source.payload.message( 0))).resized
       io.destination.payload.message( 1) := (   io.source.payload.message( 3)  ^    io.source.payload.message( 2)  ^ x2(io.source.payload.message( 1)) ^ x3(io.source.payload.message( 0))).resized
       io.destination.payload.message( 2) := (   io.source.payload.message( 3)  ^ x2(io.source.payload.message( 2)) ^ x3(io.source.payload.message( 1)) ^    io.source.payload.message( 0) ).resized

@@ -5,18 +5,18 @@ import spinal.lib._
 import spinal.lib.fsm._
 
 
-case class AESCluster(message_width: Int, key_width: Int, encrypts: Boolean = true, cores: Int = 2) extends Component {
+case class AESCluster[METADATA <: Data](message_width: Int, key_width: Int, metadata_template: HardType[METADATA], encrypts: Boolean = true, cores: Int = 2) extends Component {
   this.setName(if (encrypts) "AESEncryptionCluster" else "AESDecryptionCluster")
 
   val threads = 4
 
   val io = new Bundle {
-    val source      =  slave(Stream(CoreInterfaceIn(message_width, key_width)))
-    val destination = master(Stream(CoreInterfaceOut(message_width)))
+    val source      =  slave(Stream(CoreInterfaceIn[METADATA](message_width, key_width, metadata_template)))
+    val destination = master(Stream(CoreInterfaceOut[METADATA](message_width, metadata_template)))
   }
 
   // Creates the aggregation of cores
-  val cluster = Seq.fill(cores)(AESCore(message_width, key_width, encrypts, threads))
+  val cluster = Seq.fill(cores)(AESCore[METADATA](message_width, key_width, metadata_template, encrypts, threads))
 
   // Checks for first available core to receive the cypherblock
   val (dummy0, toCoresSelection): (Bool, UInt) = Vec(Seq.tabulate(cores)(core => cluster(core).io.source)).sFindFirst(_.ready)

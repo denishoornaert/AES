@@ -5,7 +5,7 @@ import spinal.core.sim._
 
 object AESDecryptionCoreSim extends App {
   Config.sim.compile {
-    val dut = AESCore(128, 128, false)
+    val dut = AESCore(128, 128, UInt(6 bits), false, 4)
     dut
   }.doSim { dut =>
     dut.clockDomain.forkStimulus(period = 10)

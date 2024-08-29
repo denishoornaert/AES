@@ -12,5 +12,5 @@ object Config {
     onlyStdLogicVectorAtTopLevelIo = true
   )
 
-  def sim = SimConfig.withConfig(spinal).withFstWave
+  def sim = SimConfig.withConfig(spinal).withFstWave.allOptimisation
 }

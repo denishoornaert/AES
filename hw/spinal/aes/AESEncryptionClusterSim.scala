@@ -5,7 +5,7 @@ import spinal.core.sim._
 
 object AESEncryptionClusterSim extends App {
   Config.sim.compile {
-    val dut = AESCluster(128, 128, UInt(6 bits), true, 2)
+    val dut = AESCluster(128, 128, 6, true, 2)
     dut
   }.doSim { dut =>
     dut.clockDomain.forkStimulus(period = 10)
@@ -59,7 +59,7 @@ object AESEncryptionClusterSim extends App {
         dut.io.source.valid              #= true
         dut.io.source.payload.message    #= msgs(i)
         dut.io.source.payload.key        #= keys(0)
-//        dut.io.source.payload.metadata() #= i
+        dut.io.source.payload.metadata   #= i
         dut.io.destination.ready         #= true
 
         dut.clockDomain.waitRisingEdgeWhere(dut.io.source.ready.toBoolean)
@@ -72,8 +72,8 @@ object AESEncryptionClusterSim extends App {
         dut.clockDomain.waitRisingEdgeWhere(dut.io.destination.valid.toBoolean)
         println(dut.io.destination.payload.message.toBigInt.toString(16)+" == "+encs(i).toString(16))
         assert(dut.io.destination.payload.message.toBigInt == encs(i))
-//        println(dut.io.destination.payload.metadata().toBigInt.toString(16)+" == "+i)
-//        assert(dut.io.destination.payload.metadata().toBigInt == i)
+        println(dut.io.destination.payload.metadata.toBigInt.toString(16)+" == "+i)
+        assert(dut.io.destination.payload.metadata.toBigInt == i)
         println("\t-> PASSES") 
       }
     }

@@ -5,30 +5,30 @@ import spinal.lib._
 import spinal.lib.fsm._
 
 
-case class CoreInterfaceIn[METATYPE <: Data](message_width: Int, key_width: Int, metadata_template: HardType[METATYPE]) extends Bundle {
+case class CoreInterfaceIn(message_width: Int, key_width: Int, metadata_width: Int) extends Bundle {
   val message  = UInt(message_width bits)
   val key      = UInt(key_width bits)
-  val metadata = metadata_template
+  val metadata = Bits(metadata_width bits)
 }
 
-case class CoreInterfaceOut[METATYPE <: Data](message_width: Int, metadata_template: HardType[METATYPE]) extends Bundle {
+case class CoreInterfaceOut(message_width: Int, metadata_width: Int) extends Bundle {
   val message = UInt(message_width bits)
-  val metadata = metadata_template
+  val metadata = Bits(metadata_width bits)
 }
 
-case class AESCore[METATYPE <: Data](message_width: Int, key_width: Int, metadata_template: HardType[METATYPE], encrypts: Boolean = true, threads: Int = 4) extends Component {
+case class AESCore(message_width: Int, key_width: Int, metadata_width: Int, encrypts: Boolean = true, threads: Int = 4) extends Component {
   this.setName(if (encrypts) "AESEncryptionCore" else "AESDecryptionCore")
 
   val io = new Bundle {
-    val source      =  slave(Stream(CoreInterfaceIn[METATYPE](message_width, key_width, metadata_template)))
-    val destination = master(Stream(CoreInterfaceOut[METATYPE](message_width, metadata_template)))
+    val source      =  slave(Stream(CoreInterfaceIn(message_width, key_width, metadata_width)))
+    val destination = master(Stream(CoreInterfaceOut(message_width, metadata_width)))
   }
 
   val activeThread = CounterFreeRun(threads)
   val block = AESBlock(message_width, key_width, encrypts)
 
   val contexts = Vec(Stream(BlockInterface(message_width, key_width)), threads)
-  val outproduct = Vec(Stream(CoreInterfaceOut[METATYPE](message_width, metadata_template)), threads)
+  val outproduct = Vec(Stream(CoreInterfaceOut(message_width, metadata_width)), threads)
 
   val FSMStoBlock = StreamMux(activeThread, contexts)
   block.io.source <> FSMStoBlock
@@ -48,7 +48,7 @@ case class AESCore[METATYPE <: Data](message_width: Int, key_width: Int, metadat
     context.payload.key init(0)
     context.payload.round init(0)
     
-    val metadata: METATYPE = Reg(metadata_template) init(metadata_template().getZero)
+    val metadata = Reg(Bits(metadata_width bits)) init(B(0, metadata_width bits))
 
     contexts(threadId).valid := context.valid
     contexts(threadId).payload := context.payload
@@ -68,7 +68,7 @@ case class AESCore[METATYPE <: Data](message_width: Int, key_width: Int, metadat
           context.payload.message := io.source.payload.message//^io.source.payload.keys(round)
           context.payload.key     := io.source.payload.key//s(round)//(index)
           context.payload.round   := round
-          metadata := io.source.payload.metadata()
+          metadata := io.source.payload.metadata
           counter.increment()
           goto(encrypt)
         }
@@ -119,7 +119,7 @@ case class AESCore[METATYPE <: Data](message_width: Int, key_width: Int, metadat
 
     outproduct(threadId).valid := this.isActive(this.ready)
     outproduct(threadId).payload.message := context.message
-    outproduct(threadId).payload.metadata() := metadata
+    outproduct(threadId).payload.metadata := metadata
   }
 
   io.source.ready := block.io.source.ready & Vec(Seq.tabulate(threads)(t => fsm(t).isActive(fsm(t).idle)))(activeThread.valueNext)

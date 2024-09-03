@@ -22,7 +22,7 @@ object AESEncryptionClusterBench extends App {
   var frame = Seq[BenchEntry]()
 
   for (c <- 1 to 8) {
-    val compiled = Config.sim.compile(new AESCluster(message_width=128, key_width=128, metadata_template=UInt(6 bits), encrypts=true, cores=c))
+    val compiled = Config.sim.compile(new AESCluster(message_width=128, key_width=128, metadata_width=6, encrypts=true, cores=c))
 
     compiled.doSim(s"cores_${c}") { dut =>
       dut.clockDomain.forkStimulus(period = 10)
@@ -44,7 +44,7 @@ object AESEncryptionClusterBench extends App {
           dut.io.source.valid              #= true
           dut.io.source.payload.message    #= msg+i
           dut.io.source.payload.key        #= key
-//          dut.io.source.payload.metadata() #= i%(64)
+          dut.io.source.payload.metadata   #= i%(64)
 
           dut.clockDomain.waitRisingEdgeWhere(dut.io.source.ready.toBoolean)
           dut.io.source.valid #= false

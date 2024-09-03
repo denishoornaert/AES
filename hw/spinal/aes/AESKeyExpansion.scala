@@ -3,7 +3,6 @@ package aes
 import spinal.core._
 import spinal.lib._
 
-import steps._
 
 case class KeyExpansionInputPort(key_width: Int) extends Bundle {
   val key   = UInt(key_width bits)

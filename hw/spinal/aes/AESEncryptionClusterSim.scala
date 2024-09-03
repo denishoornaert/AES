@@ -3,9 +3,9 @@ package aes
 import spinal.core._
 import spinal.core.sim._
 
-object AESDecryptionCoreSim extends App {
+object AESEncryptionClusterSim extends App {
   Config.sim.compile {
-    val dut = AESCore(128, 128, 6, false, 4)
+    val dut = AESCluster(128, 128, 6, true, 2)
     dut
   }.doSim { dut =>
     dut.clockDomain.forkStimulus(period = 10)
@@ -47,23 +47,40 @@ object AESDecryptionCoreSim extends App {
       BigInt("b7dc195739122523b108f5b00f3585df", 16),
       BigInt("c5db3936c7ec4e5d97610607336822b1", 16)
     )
+    
+    dut.io.destination.ready #= true
 
-    for (i <- 0 until 8) {
-      println("--------------------------------------------------------------------------------")
-      println("Block "+i+" encryption:")
-      dut.io.source.valid             #= true
-      dut.io.source.payload.message   #= encs(i)
-      dut.io.source.payload.key       #= keys(0)
-      dut.io.destination.ready        #= true
+    dut.clockDomain.waitRisingEdge(8)
 
-      dut.clockDomain.waitSamplingWhere(dut.io.source.ready.toBoolean)
-      dut.io.source.valid #= false
+    val produce = fork {
+      for (i <- 0 until 8) {
+        println("--------------------------------------------------------------------------------")
+        println("Block "+i+" encryption:")
+        dut.io.source.valid              #= true
+        dut.io.source.payload.message    #= msgs(i)
+        dut.io.source.payload.key        #= keys(0)
+        dut.io.source.payload.metadata   #= i
+        dut.io.destination.ready         #= true
 
-      dut.clockDomain.waitSamplingWhere(dut.io.destination.valid.toBoolean)
-      println(dut.io.destination.payload.message.toBigInt.toString(16)+" == "+msgs(i).toString(16))
-      assert(dut.io.destination.payload.message.toBigInt == msgs(i))
-      println("\t-> PASSES") 
+        dut.clockDomain.waitRisingEdgeWhere(dut.io.source.ready.toBoolean)
+        dut.io.source.valid #= false
+      }
     }
+
+    val consume = fork {
+      for (i <- 0 until 8) {
+        dut.clockDomain.waitRisingEdgeWhere(dut.io.destination.valid.toBoolean)
+        println(dut.io.destination.payload.message.toBigInt.toString(16)+" == "+encs(i).toString(16))
+        assert(dut.io.destination.payload.message.toBigInt == encs(i))
+        println(dut.io.destination.payload.metadata.toBigInt.toString(16)+" == "+i)
+        assert(dut.io.destination.payload.metadata.toBigInt == i)
+        println("\t-> PASSES") 
+      }
+    }
+
+    produce.join()
+    consume.join()
+
     println("--------------------------------------------------------------------------------")
     
   }

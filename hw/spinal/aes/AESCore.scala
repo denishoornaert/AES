@@ -65,8 +65,8 @@ case class AESCore(message_width: Int, key_width: Int, metadata_width: Int, encr
           val round = if(encrypts) 0 else 10
           val index = if(encrypts) round+1 else round-1
           context.valid           := True
-          context.payload.message := io.source.payload.message//^io.source.payload.keys(round)
-          context.payload.key     := io.source.payload.key//s(round)//(index)
+          context.payload.message := io.source.payload.message
+          context.payload.key     := io.source.payload.key
           context.payload.round   := round
           metadata := io.source.payload.metadata
           counter.increment()

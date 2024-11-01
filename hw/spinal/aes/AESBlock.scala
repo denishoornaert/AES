@@ -18,7 +18,7 @@ case class StageInterface(payload_width: Int, key_width: Int) extends Bundle {
 }
 
 // Hardware definition
-case class AESBlock(payload_width: Int = 128, key_width: Int = 128, encrypts: Boolean = true) extends Component {
+case class AESBlock(payload_width: Int = 128, key_width: Int = 128, encrypts: Boolean = true, dual_ported: Boolean = false) extends Component {
   val io = new Bundle {
     val source      =  slave(Stream(BlockInterface(payload_width, key_width)))
     val destination = master(Stream(BlockInterface(payload_width, key_width)))
@@ -29,11 +29,11 @@ case class AESBlock(payload_width: Int = 128, key_width: Int = 128, encrypts: Bo
   val interfaces = Array.fill(3)(Payload(StageInterface(payload_width, key_width)))
 
   // stage 0
-  val subBytes      = SubBytes(payload_width, key_width, encrypts)
+  val subBytes      = SubBytes(payload_width, key_width, encrypts, dual_ported)
   val roundConstant = RoundConstant(encrypts)
   // stage 1  
   val shiftRows     = ShiftRows(payload_width, key_width, encrypts)
-  val keySchedule   = KeySchedule(key_width)
+  val keySchedule   = KeySchedule(key_width, dual_ported)
   // stage 2
   val mixColumns    = MixColumns(payload_width, key_width, encrypts)
   // stage 3

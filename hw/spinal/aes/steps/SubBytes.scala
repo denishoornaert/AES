@@ -5,7 +5,7 @@ import spinal.lib._
 
 import aes.common._
 
-case class SubBytes(message_width: Int, key_width: Int, encrypts: Boolean = true) extends Component {
+case class SubBytes(message_width: Int, key_width: Int, encrypts: Boolean = true, dual_ported: Boolean = true) extends Component {
 
   val enc_sbox = Seq[UInt](
     U"8'h63", U"8'h7c", U"8'h77", U"8'h7b", U"8'hf2", U"8'h6b", U"8'h6f", U"8'hc5", U"8'h30", U"8'h01", U"8'h67", U"8'h2b", U"8'hfe", U"8'hd7", U"8'hab", U"8'h76",
@@ -57,8 +57,21 @@ case class SubBytes(message_width: Int, key_width: Int, encrypts: Boolean = true
   io.destination.payload.round := io.source.payload.round
   io.source.ready              := io.destination.ready
 
-  for (i <- 0 until message_width/8) {
-    val mem = Mem(UInt(8 bits), initialContent=sbox)
-    io.destination.payload.message(i) := mem.readAsync(io.source.payload.message(i))
+  if (dual_ported) {
+    println("[SubByte] Dual ported.")
+    val ports = 2
+    for (i <- 0 until message_width/8 by ports) {
+      val mem = Mem(UInt(8 bits), initialContent=sbox)
+      for (p <- 0 until ports) {
+        io.destination.payload.message(i+p) := mem.readSync(io.source.payload.message(i+p))
+      }
+    }
+  }
+  else { // single ported
+    println("[SubByte] Single ported.")
+    for (i <- 0 until message_width/8) {
+      val mem = Mem(UInt(8 bits), initialContent=sbox)
+      io.destination.payload.message(i) := mem.readAsync(io.source.payload.message(i))
+    }
   }
 }

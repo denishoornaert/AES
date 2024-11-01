@@ -15,7 +15,7 @@ case class KeyScheduleOutputPort(key_width: Int) extends Bundle {
 }
 
 // Specialized for AES-128 must be augmented for other versions!
-case class KeySchedule(key_width: Int) extends Component {
+case class KeySchedule(key_width: Int, dual_ported: Boolean = true) extends Component {
    
   val enc_sbox = Seq[UInt](
     U"8'h63", U"8'h7c", U"8'h77", U"8'h7b", U"8'hf2", U"8'h6b", U"8'h6f", U"8'hc5", U"8'h30", U"8'h01", U"8'h67", U"8'h2b", U"8'hfe", U"8'hd7", U"8'hab", U"8'h76",
@@ -51,9 +51,22 @@ case class KeySchedule(key_width: Int) extends Component {
   // Handle word 3
   val modified_word_3 = Bits(32 bits)
   val sub_bytes = Vec.fill(widthOf(modified_word_3)/8)(UInt(8 bits))
-  for (i <- 0 until widthOf(modified_word_3)/8) {
-    val sbox = Mem(UInt(8 bits), initialContent=enc_sbox)
-    sub_bytes(i) := sbox.readAsync(key_by_32(0)(i*8 until (i+1)*8).asUInt)
+  if (dual_ported) {
+    println("[KeySchedule] Dual ported.")
+    val ports = 2
+    for (i <- 0 until widthOf(modified_word_3)/8 by ports) {
+      val sbox = Mem(UInt(8 bits), initialContent=enc_sbox)
+      for (p <- 0 until ports) {
+        sub_bytes(i+p) := sbox.readSync(key_by_32(0)((i+p)*8 until (i+p+1)*8).asUInt)
+      }
+    }
+  } // single port
+  else {
+    println("[KeySchedule] Single ported.")
+    for (i <- 0 until widthOf(modified_word_3)/8) {
+      val sbox = Mem(UInt(8 bits), initialContent=enc_sbox)
+      sub_bytes(i) := sbox.readAsync(key_by_32(0)(i*8 until (i+1)*8).asUInt)
+    }
   }
   modified_word_3 := Cat(sub_bytes(2)^io.source.payload.constant, sub_bytes(1), sub_bytes(0), sub_bytes(3))
   // Handle word 0
